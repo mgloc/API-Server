@@ -10,7 +10,6 @@ const app = express();
 
 //Other imports
 const fs = require("fs");
-const { decode } = require('punycode');
 path_data_messages = "./data/messages.json";
 
 app.use(cors())
@@ -31,7 +30,7 @@ const writeFile = function(path,json){
 const appendFile = function(path,js_item){
     var json = readFile(path)
     json.push(js_item)
-
+    
     writeFile(path, json)
     return true;
 }
@@ -42,6 +41,25 @@ const getHoursMinutes = function(date){
     return hours + ':' + mins
 }
 
+const deleteHappenedBefore = function(path,secondsBefore){
+    const time = Date.now();
+    const json = readFile(path).filter(m=>{
+        const mTime = parseInt(m.time)
+        if (mTime+secondsBefore<time){
+            return false;
+        }
+        return true;
+    })
+    writeFile(path,json)
+    console.log("Removing old messages")
+}
+
+const autoRemoveOld = async function(path,secondsBefore,timeout){
+    setInterval(
+        ()=>{deleteHappenedBefore(path,secondsBefore)},
+        timeout
+        )
+}
 
 //Routes
 app.get('/', (req, res) => {
@@ -79,6 +97,9 @@ app.post('/messages',(req,res)=>{
     res.send(message)
 });
 
-
+//Auto-removing old messages from the database
+const dayInMiliseconds = 86400000;
+const minuteInMiliseconds = 60000;
+autoRemoveOld(path_data_messages,dayInMiliseconds,dayInMiliseconds-minuteInMiliseconds)
 
 app.listen(port, () => console.log(`API listening on port ${port}!`))
